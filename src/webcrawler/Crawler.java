@@ -16,6 +16,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import javax.net.ssl.HttpsURLConnection;
+import main.Main;
 
 public class Crawler {
 	
@@ -34,7 +35,8 @@ public class Crawler {
 	}
 	
 	private Object[] crawlOneWebsite(URL website) throws IOException {
-		System.out.println("Crawling " + website);
+		if (Main.DEBUG)
+			System.out.println("Crawling " + website);
 		final HttpsURLConnection connection = this.getConnection(website);
 		final List<String> lines = new ArrayList<>();
 		try (InputStream content = connection.getInputStream();

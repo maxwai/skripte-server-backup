@@ -18,3 +18,4 @@ was programmed using the Java 17 JDK.
  - `USERNAME` : The Username to login on the Website
  - `PASSWORD` : The Password to login on the Website
  - `SAVE_PATH` : The Path where the Script Server should be saved to
+ - `DEBUG` - Optional : `true` or `false` for debug output. Default: `false`

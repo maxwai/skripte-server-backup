@@ -1,3 +1,5 @@
+package main;
+
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -8,6 +10,7 @@ import webcrawler.Crawler;
 import webcrawler.Folder;
 
 public class Main {
+	public static boolean DEBUG = false;
 	
 	public static void main(String[] args) {
 		final String website = System.getenv("WEBSITE");
@@ -21,6 +24,10 @@ public class Main {
 			System.exit(-1);
 		}
 		
+		final String debug = System.getenv("DEBUG");
+		if (debug != null)
+			DEBUG = Boolean.parseBoolean(debug);
+		
 		final Path savePath = Path.of(savePathEnv);
 		if (!Files.isDirectory(savePath))
 			throw new IllegalArgumentException("Path is not correct");
@@ -31,7 +38,8 @@ public class Main {
 			List<Folder> folders = crawler.crawl();
 			folders.parallelStream().forEach(folder -> folder.updateFiles(crawler, savePath));
 			Instant stop = Instant.now();
-			System.out.println("Took " + Duration.between(start, stop).toString());
+			if (DEBUG)
+				System.out.println("Took " + Duration.between(start, stop).toString());
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
