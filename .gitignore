@@ -6,3 +6,4 @@
 *.cfg
 *.xml
 *.iml
+/save_location
