@@ -18,4 +18,9 @@ was programmed using the Java 17 JDK.
  - `USERNAME` : The Username to login on the Website
  - `PASSWORD` : The Password to login on the Website
  - `SAVE_PATH` : The Path where the Script Server should be saved to
+ - `INTERVAL` : The Interval on which the Script Server should be crawled.  
+   possibilities (\<x\> being a number):
+   - `<x>d` : the interval is given in days
+   - `<x>h` or `<x>` : the interval is given in hours
+   - nothing less than 1 hour is allowed since this would be too much traffic to the Website
  - `DEBUG` - Optional : `true` or `false` for debug output. Default: `false`
