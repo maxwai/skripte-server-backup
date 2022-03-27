@@ -29,8 +29,8 @@ public class Folder {
 				return;
 			}
 		}
-		subfolders.forEach(folder -> folder.updateFiles(crawler, currentPath));
-		files.forEach(file -> file.updateFile(crawler, currentPath));
+		subfolders.parallelStream().forEach(folder -> folder.updateFiles(crawler, currentPath));
+		files.parallelStream().forEach(file -> file.updateFile(crawler, currentPath));
 	}
 	
 	@Override

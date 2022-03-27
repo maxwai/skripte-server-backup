@@ -8,13 +8,9 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
-import java.nio.file.OpenOption;
 import java.nio.file.Path;
-import java.nio.file.StandardOpenOption;
 import java.nio.file.attribute.FileTime;
-import java.time.Instant;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Base64;
 import java.util.List;
 import java.util.Map;
@@ -51,6 +47,7 @@ public class Crawler {
 		final List<Map<ITEMS, String>> parsedLines = lines.stream()
 				.filter(line -> line.contains("<tr><td"))
 				.filter(line -> !line.contains("PARENTDIR"))
+				.parallel()
 				.map(line -> {
 					final int indexOfType = line.indexOf("alt=") + 6;
 					final String type = line.substring(indexOfType, line.indexOf(']',
@@ -61,12 +58,12 @@ public class Crawler {
 					link = link.replaceAll("&amp;", "&");
 					final String name = line.substring(endIndexOfHref + 2,
 							line.indexOf("</a>", endIndexOfHref));
-					final int indexOfDate = line.indexOf("<td align=\"right\">") + 18;
 					return Map.of(ITEMS.TYPE, type, ITEMS.LINK, link, ITEMS.NAME, name);
 				})
 				.toList();
 		final List<File> files = parsedLines.stream()
 				.filter(map -> !map.get(ITEMS.TYPE).equals("DIR"))
+				.parallel()
 				.map(map -> {
 					try {
 						URL fileURL = new URL(website, map.get(ITEMS.LINK));
@@ -80,6 +77,7 @@ public class Crawler {
 				.toList();
 		final List<Folder> subfolders = parsedLines.stream()
 				.filter(map -> map.get(ITEMS.TYPE).equals("DIR"))
+				.parallel()
 				.map(map -> {
 					try {
 						final Object[] output = crawlOneWebsite(

@@ -1,6 +1,8 @@
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.List;
 import webcrawler.Crawler;
 import webcrawler.Folder;
@@ -24,9 +26,12 @@ public class Main {
 			throw new IllegalArgumentException("Path is not correct");
 		
 		try {
+			Instant start = Instant.now();
 			Crawler crawler = new Crawler(website, username, password);
 			List<Folder> folders = crawler.crawl();
-			folders.forEach(folder -> folder.updateFiles(crawler, savePath));
+			folders.parallelStream().forEach(folder -> folder.updateFiles(crawler, savePath));
+			Instant stop = Instant.now();
+			System.out.println("Took " + Duration.between(start, stop).toString());
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
