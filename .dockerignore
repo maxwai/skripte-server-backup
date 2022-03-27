@@ -9,3 +9,5 @@ Dockerfile
 gradle
 build
 docker-compose.yml
+save_location
+update-docker-version.sh
