@@ -19,24 +19,26 @@ public class File {
 		this.link = link;
 	}
 	
-	public void updateFile(Crawler crawler, Path rootPath) {
+	public boolean updateFile(Crawler crawler, Path rootPath) {
 		final Path currentPath = Path.of(rootPath.toString(), name);
 		try {
 			if (!Files.isRegularFile(currentPath)) {
 				System.out.println("Creating file: " + currentPath);
 				crawler.downloadFile(currentPath, link);
+				return true;
 			} else {
 				final int difference = Files.readAttributes(currentPath,
 						BasicFileAttributes.class).lastModifiedTime().compareTo(lastModified);
 				if (difference != 0) {
 					System.out.println("Updating file: " + currentPath);
 					crawler.downloadFile(currentPath, link);
+					return true;
 				}
 			}
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
-		
+		return false;
 	}
 	
 	@Override

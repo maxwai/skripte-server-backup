@@ -18,7 +18,7 @@ public class Folder {
 		this.name = name;
 	}
 	
-	public void updateFiles(Crawler crawler, Path rootPath) {
+	public boolean updateFiles(Crawler crawler, Path rootPath) {
 		final Path currentPath = Path.of(rootPath.toString(), name);
 		if (!Files.isDirectory(currentPath)) {
 			try {
@@ -26,11 +26,16 @@ public class Folder {
 				System.out.println("Created Directory: " + currentPath);
 			} catch (IOException e) {
 				e.printStackTrace();
-				return;
+				return false;
 			}
 		}
-		subfolders.parallelStream().forEach(folder -> folder.updateFiles(crawler, currentPath));
-		files.parallelStream().forEach(file -> file.updateFile(crawler, currentPath));
+		// need to be careful with the reduce that every call is made even if something is found.
+		boolean foundAnything = subfolders.parallelStream()
+				.map(folder -> folder.updateFiles(crawler, currentPath))
+				.reduce(Boolean.FALSE, Boolean::logicalOr);
+		return files.parallelStream()
+					   .map(file -> file.updateFile(crawler, currentPath))
+					   .reduce(Boolean.FALSE, Boolean::logicalOr) || foundAnything;
 	}
 	
 	@Override

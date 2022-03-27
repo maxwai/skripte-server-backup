@@ -1,6 +1,9 @@
 package main;
 
+import java.io.BufferedReader;
+import java.io.File;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
@@ -56,7 +59,9 @@ public class Main {
 		
 		//noinspection InfiniteLoopStatement
 		while (true) {
-			crawl(website, username, password, savePath);
+			final boolean changedAnything = crawl(website, username, password, savePath);
+			if (changedAnything)
+				makeGitCommands(savePath.toAbsolutePath().toString());
 			try {
 				System.out.println("Waiting till " +
 								   LocalDateTime.now().plusSeconds(sleepTimeInMillis / 1000) +
@@ -69,17 +74,64 @@ public class Main {
 		}
 	}
 	
-	private static void crawl(String website, String username, String password, Path savePath) {
+	private static void makeGitCommands(String gitPath) {
+		System.out.println("Doing git commands");
+		
+		final String cmd1 = "git add .";
+		final String cmd2 = "git commit -m 'Changes from " + LocalDateTime.now() + "'";
+		final String cmd3 = "git push";
+		final List<String> cmds = List.of(cmd1, cmd2, cmd3);
+		
+		final Runtime runtime = Runtime.getRuntime();
+		
+		cmds.forEach(cmd -> {
+			try {
+				final Process process = runtime.exec(new String[]{"sh", "-c", cmd}, null,
+						new File(gitPath));
+				
+				final BufferedReader reader = new BufferedReader(
+						new InputStreamReader(process.getInputStream()));
+				
+				final BufferedReader errorreader = new BufferedReader(
+						new InputStreamReader(process.getErrorStream()));
+				
+				final StringBuilder output = new StringBuilder();
+				
+				String line;
+				while ((line = reader.readLine()) != null) {
+					output.append(line).append("\n");
+				}
+				
+				output.append("\nErrors:\n\n");
+				
+				while ((line = errorreader.readLine()) != null) {
+					output.append(line).append("\n");
+				}
+				
+				System.out.println("Exit value: " + process.waitFor());
+				System.out.println(output);
+			} catch (IOException | InterruptedException e) {
+				e.printStackTrace();
+			}
+		});
+		System.out.println("Finished with Git commands");
+	}
+	
+	private static boolean crawl(String website, String username, String password, Path savePath) {
 		try {
-			Instant start = Instant.now();
-			Crawler crawler = new Crawler(website, username, password);
-			List<Folder> folders = crawler.crawl();
-			folders.parallelStream().forEach(folder -> folder.updateFiles(crawler, savePath));
-			Instant stop = Instant.now();
+			final Instant start = Instant.now();
+			final Crawler crawler = new Crawler(website, username, password);
+			final List<Folder> folders = crawler.crawl();
+			final boolean changedAnything = folders.parallelStream()
+					.map(folder -> folder.updateFiles(crawler, savePath))
+					.reduce(Boolean.FALSE, Boolean::logicalOr);
+			final Instant stop = Instant.now();
 			if (DEBUG)
 				System.out.println("Took " + Duration.between(start, stop).toString());
+			return changedAnything;
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
+		return false;
 	}
 }
