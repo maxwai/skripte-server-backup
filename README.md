@@ -14,5 +14,7 @@ You will need Java Version 17 or later to make it work. It may work with lower J
 was programmed using the Java 17 JDK.
 
 ### Needed environment variables
-
-TODO
+ - `WEBSITE` : The URL to the HM Script Server Website
+ - `USERNAME` : The Username to login on the Website
+ - `PASSWORD` : The Password to login on the Website
+ - `SAVE_PATH` : The Path where the Script Server should be saved to
