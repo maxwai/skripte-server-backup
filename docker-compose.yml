@@ -1,0 +1,15 @@
+version: '3.2'
+
+services:
+  bot:
+    container_name: ScriptServerBackup
+    build: .
+    restart: "unless-stopped"
+    environment:
+      - WEBSITE="https://example.com"
+      - USERNAME="username"
+      - PASSWORD="password"
+      - INTERVAL="1d"
+      - DEBUG="false"
+    volumes:
+      - ./save_location:/save_location
