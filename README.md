@@ -15,8 +15,6 @@ was programmed using the Java 17 JDK.
 
 ### Needed environment variables
  - `WEBSITE` : The URL to the HM Script Server Website
- - `USERNAME` : The Username to login on the Website
- - `PASSWORD` : The Password to login on the Website
  - `SAVE_PATH` : The Path where the Script Server should be saved to
  - `INTERVAL` : The Interval on which the Script Server should be crawled.  
    possibilities (\<x\> being a number):

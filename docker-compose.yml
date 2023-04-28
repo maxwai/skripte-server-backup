@@ -7,8 +7,6 @@ services:
     restart: "unless-stopped"
     environment:
       - WEBSITE="https://example.com"
-      - USERNAME="username"
-      - PASSWORD="password"
       - INTERVAL="1d"
       - DEBUG="false"
     volumes:

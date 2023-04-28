@@ -1,126 +1,96 @@
 package webcrawler;
 
-import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.InputStreamReader;
+import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.attribute.FileTime;
+import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
-import java.util.Base64;
+import java.util.LinkedList;
 import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import javax.net.ssl.HttpsURLConnection;
-import main.Main;
+import java.util.stream.Stream;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipFile;
 
 public class Crawler {
 	
 	private final URL website;
-	private final String authentication;
+	private final java.io.File directory;
 	
-	public Crawler(String website, String username, String password) throws MalformedURLException {
+	public Crawler(String website, java.io.File directory) throws MalformedURLException {
 		this.website = new URL(website);
-		this.authentication = Base64.getEncoder()
-				.encodeToString((username + ":" + password).getBytes(StandardCharsets.UTF_8));
+		this.directory = directory;
 	}
 	
-	public List<Folder> crawl() throws IOException {
-		//noinspection unchecked
-		return (List<Folder>) this.crawlOneWebsite(website)[0];
+	// protect zip slip attack
+	public static Path zipSlipProtect(ZipEntry zipEntry, Path targetDir) throws IOException {
+		// test zip slip vulnerability
+		// Path targetDirResolved = targetDir.resolve("../../" + zipEntry.getName());
+		Path targetDirResolved = targetDir.resolve(zipEntry.getName());
+		
+		// make sure normalized file still has targetDir as its prefix else throw exception
+		Path normalizePath = targetDirResolved.normalize();
+		if (!normalizePath.startsWith(targetDir)) {
+			throw new IOException("Bad zip entry: " + zipEntry.getName());
+		}
+		return normalizePath;
 	}
 	
-	private Object[] crawlOneWebsite(URL website) throws IOException {
-		if (Main.DEBUG)
-			System.out.println("Crawling " + website);
-		final HttpsURLConnection connection = this.getConnection(website);
-		final List<String> lines = new ArrayList<>();
-		try (InputStream content = connection.getInputStream();
-				BufferedReader in = new BufferedReader(new InputStreamReader(content))) {
-			String line;
-			while ((line = in.readLine()) != null) {
-				lines.add(line);
+	public Folder download() throws IOException {
+		java.io.File zipPath = new java.io.File(directory, "download.zip");
+		HttpURLConnection connection = (HttpURLConnection) website.openConnection();
+		connection.setRequestMethod("GET");
+		try (InputStream in = connection.getInputStream()) {
+			Files.copy(in, zipPath.toPath(), StandardCopyOption.REPLACE_EXISTING);
+		}
+		try (ZipFile zipFile = new ZipFile(zipPath)) {
+			zipFile.stream()
+					.parallel()
+					.forEach(entry -> {
+						try {
+							Path newPath = zipSlipProtect(entry, directory.toPath());
+							if (!entry.isDirectory()) {
+								if (newPath.getParent() != null) {
+									if (Files.notExists(newPath.getParent())) {
+										Files.createDirectories(newPath.getParent());
+									}
+								}
+								Files.copy(zipFile.getInputStream(entry), newPath,
+										StandardCopyOption.REPLACE_EXISTING);
+							} else {
+								Files.createDirectories(newPath);
+							}
+							Files.setLastModifiedTime(newPath, entry.getLastModifiedTime());
+						} catch (IOException e) {
+							throw new RuntimeException(e);
+						}
+					});
+		}
+		//noinspection ResultOfMethodCallIgnored
+		new java.io.File(directory, "download.zip").delete();
+		return getContent(directory.toPath().resolve("Skripte"));
+	}
+	
+	private Folder getContent(Path directory) {
+		try {
+			List<Folder> subfolders = new LinkedList<>();
+			List<File> files = new ArrayList<>();
+			try (Stream<Path> stream = Files.list(directory)) {
+				stream.parallel()
+						.forEach(path -> {
+							if (Files.isDirectory(path)) {
+								subfolders.add(getContent(path));
+							} else {
+								files.add(new File(path));
+							}
+						});
 			}
+			return new Folder(subfolders, files, directory.getFileName().toString());
+		} catch (IOException e) {
+			throw new RuntimeException(e);
 		}
-		final List<Map<ITEMS, String>> parsedLines = lines.stream()
-				.filter(line -> line.contains("<tr><td"))
-				.filter(line -> !line.contains("PARENTDIR"))
-				.parallel()
-				.map(line -> {
-					final int indexOfType = line.indexOf("alt=") + 6;
-					final String type = line.substring(indexOfType, line.indexOf(']',
-							indexOfType));
-					final int indexOfHref = line.indexOf("<a href=") + 9;
-					final int endIndexOfHref = line.indexOf('"', indexOfHref);
-					String link = line.substring(indexOfHref, endIndexOfHref);
-					link = link.replaceAll("&amp;", "&");
-					final String name = line.substring(endIndexOfHref + 2,
-							line.indexOf("</a>", endIndexOfHref));
-					return Map.of(ITEMS.TYPE, type, ITEMS.LINK, link, ITEMS.NAME, name);
-				})
-				.toList();
-		final List<File> files = parsedLines.stream()
-				.filter(map -> !map.get(ITEMS.TYPE).equals("DIR"))
-				.parallel()
-				.map(map -> {
-					try {
-						URL fileURL = new URL(website, map.get(ITEMS.LINK));
-						return new File(map.get(ITEMS.NAME), getLastModified(fileURL), fileURL);
-					} catch (IOException e) {
-						e.printStackTrace();
-					}
-					return null;
-				})
-				.filter(Objects::nonNull)
-				.toList();
-		final List<Folder> subfolders = parsedLines.stream()
-				.filter(map -> map.get(ITEMS.TYPE).equals("DIR"))
-				.parallel()
-				.map(map -> {
-					try {
-						final Object[] output = crawlOneWebsite(
-								new URL(website, map.get(ITEMS.LINK)));
-						//noinspection unchecked
-						return new Folder((List<Folder>) output[0], (List<File>) output[1],
-								map.get(ITEMS.NAME));
-					} catch (IOException e) {
-						e.printStackTrace();
-					}
-					return null;
-				})
-				.filter(Objects::nonNull)
-				.toList();
-		return new Object[]{subfolders, files};
-	}
-	
-	public void downloadFile(Path filePath, URL fileWebsite) throws IOException {
-		System.out.println("Downloading " + fileWebsite);
-		final HttpsURLConnection connection = this.getConnection(fileWebsite);
-		try (InputStream input = connection.getInputStream()) {
-			Files.write(filePath, input.readAllBytes());
-		}
-		Files.setLastModifiedTime(filePath, FileTime.fromMillis(connection.getLastModified()));
-	}
-	
-	private HttpsURLConnection getConnection(URL website) throws IOException {
-		final HttpsURLConnection connection = (HttpsURLConnection) website.openConnection();
-		connection.setDoOutput(true);
-		connection.setRequestProperty("Authorization", "Basic " + authentication);
-		return connection;
-	}
-	
-	private FileTime getLastModified(URL fileURL) throws IOException {
-		final HttpsURLConnection connection = (HttpsURLConnection) fileURL.openConnection();
-		connection.setRequestMethod("HEAD");
-		connection.setRequestProperty("Authorization", "Basic " + authentication);
-		return FileTime.fromMillis(connection.getLastModified());
-	}
-	
-	private enum ITEMS {
-		LINK, NAME, TYPE
 	}
 }

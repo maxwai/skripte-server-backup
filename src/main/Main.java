@@ -19,15 +19,10 @@ public class Main {
 	
 	public static void main(String[] args) {
 		final String website = System.getenv("WEBSITE");
-		final String username = System.getenv("USERNAME");
-		final String password = System.getenv("PASSWORD");
 		final String savePathEnv = System.getenv("SAVE_PATH");
 		final String sleepTime = System.getenv("INTERVAL");
-		if (website == null || username == null || password == null || savePathEnv == null
-			|| sleepTime == null) {
-			System.err.println(
-					"Need following environment variables to work: WEBSITE, USERNAME, PASSWORD, "
-					+ "SAVE_PATH");
+		if (website == null || savePathEnv == null || sleepTime == null) {
+			System.err.println("Need following environment variables to work: WEBSITE, SAVE_PATH");
 			System.exit(-1);
 		}
 		
@@ -59,7 +54,7 @@ public class Main {
 		
 		//noinspection InfiniteLoopStatement
 		while (true) {
-			final boolean changedAnything = crawl(website, username, password, savePath);
+			final boolean changedAnything = crawl(website, savePath);
 			if (changedAnything)
 				makeGitCommands(savePath.toAbsolutePath().toString());
 			try {
@@ -117,14 +112,17 @@ public class Main {
 		System.out.println("Finished with Git commands");
 	}
 	
-	private static boolean crawl(String website, String username, String password, Path savePath) {
+	private static boolean crawl(String website, Path savePath) {
 		try {
 			final Instant start = Instant.now();
-			final Crawler crawler = new Crawler(website, username, password);
-			final List<Folder> folders = crawler.crawl();
-			final boolean changedAnything = folders.parallelStream()
-					.map(folder -> folder.updateFiles(crawler, savePath))
-					.reduce(Boolean.FALSE, Boolean::logicalOr);
+			File directory = new File("tmp");
+			if (!directory.isDirectory()) {
+				//noinspection ResultOfMethodCallIgnored
+				directory.mkdirs();
+			}
+			final Crawler crawler = new Crawler(website, directory);
+			final Folder folder = crawler.download();
+			final boolean changedAnything = folder.updateFiles(savePath);
 			final Instant stop = Instant.now();
 			if (DEBUG)
 				System.out.println("Took " + Duration.between(start, stop).toString());
