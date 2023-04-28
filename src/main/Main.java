@@ -122,7 +122,7 @@ public class Main {
 			}
 			final Crawler crawler = new Crawler(website, directory);
 			final Folder folder = crawler.download();
-			final boolean changedAnything = folder.updateFiles(savePath);
+			final boolean changedAnything = folder.updateFiles(savePath, true);
 			final Instant stop = Instant.now();
 			if (DEBUG)
 				System.out.println("Took " + Duration.between(start, stop).toString());

@@ -18,20 +18,22 @@ public class Folder {
 		this.name = name;
 	}
 	
-	public boolean updateFiles(Path rootPath) {
-		final Path currentPath = Path.of(rootPath.toString(), name);
-		if (!Files.isDirectory(currentPath)) {
-			try {
-				Files.createDirectory(currentPath);
-				System.out.println("Created Directory: " + currentPath);
-			} catch (IOException e) {
-				e.printStackTrace();
-				return false;
+	public boolean updateFiles(Path rootPath, boolean first) {
+		final Path currentPath = first ? rootPath : Path.of(rootPath.toString(), name);
+		if (!first) {
+			if (!Files.isDirectory(currentPath)) {
+				try {
+					Files.createDirectory(currentPath);
+					System.out.println("Created Directory: " + currentPath);
+				} catch (IOException e) {
+					e.printStackTrace();
+					return false;
+				}
 			}
 		}
 		// need to be careful with the reduce that every call is made even if something is found.
 		boolean foundAnything = subfolders.parallelStream()
-				.map(folder -> folder.updateFiles(currentPath))
+				.map(folder -> folder.updateFiles(currentPath, false))
 				.reduce(Boolean.FALSE, Boolean::logicalOr);
 		return files.parallelStream()
 					   .map(file -> file.updateFile(currentPath))
